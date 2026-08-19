@@ -1,0 +1,38 @@
+name: sync-sheet-xlsx
+
+on:
+  repository_dispatch:
+    types: [sync-sheet]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Decode xlsx from payload
+        env:
+          XLSX_BASE64: ${{ github.event.client_payload.xlsx_base64 }}
+        run: |
+          if [ -z "$XLSX_BASE64" ]; then
+            echo "No xlsx_base64 in payload"
+            exit 1
+          fi
+
+          mkdir -p data
+          echo "$XLSX_BASE64" | base64 -d > data/tasks.xlsx
+          ls -lh data/tasks.xlsx
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add data/tasks.xlsx
+          git commit -m "Sync tasks.xlsx from Google Sheet" || echo "No changes"
+          git push
